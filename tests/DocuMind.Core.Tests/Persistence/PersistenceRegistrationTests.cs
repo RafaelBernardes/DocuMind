@@ -1,0 +1,48 @@
+using DocuMind.Core.Documents;
+using DocuMind.Infrastructure.Configuration;
+using DocuMind.Infrastructure.Persistence;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace DocuMind.Core.Tests.Persistence;
+
+public sealed class PersistenceRegistrationTests
+{
+    [Fact]
+    public void PersistenceServicesAreRegistered()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Postgres:ConnectionString"] = "Host=localhost;Port=5432;Database=documind;Username=postgres;Password=postgres",
+                ["Postgres:Schema"] = "public",
+                ["OpenAI:Endpoint"] = "https://api.openai.com/v1/",
+                ["OpenAI:ApiKey"] = "test-key",
+                ["OpenAI:ChatModel"] = "gpt-4.1-mini",
+                ["OpenAI:EmbeddingModel"] = "text-embedding-3-small",
+                ["LocalStorage:BasePath"] = "storage",
+                ["LocalStorage:UploadsPath"] = "uploads",
+                ["LocalStorage:ProcessedPath"] = "processed",
+                ["Ingestion:ChunkSize"] = "1200",
+                ["Ingestion:ChunkOverlap"] = "200",
+                ["Ingestion:MaxFileSizeMb"] = "25",
+                ["Ingestion:AllowedExtensions:0"] = ".pdf",
+                ["Query:TopK"] = "5",
+                ["Query:MinScore"] = "0.7",
+                ["Query:MaxContextChunks"] = "8"
+            })
+            .Build();
+
+        services.AddDocuMindConfiguration(configuration);
+        services.AddDocuMindPersistence();
+
+        using var provider = services.BuildServiceProvider();
+
+        var dbContext = provider.GetRequiredService<DocuMindDbContext>();
+        var repository = provider.GetRequiredService<IDocumentRepository>();
+
+        Assert.NotNull(dbContext);
+        Assert.NotNull(repository);
+    }
+}

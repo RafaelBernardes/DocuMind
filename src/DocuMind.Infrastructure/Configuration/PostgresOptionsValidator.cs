@@ -16,6 +16,11 @@ public sealed class PostgresOptionsValidator : IValidateOptions<PostgresOptions>
             return ValidateOptionsResult.Fail("Postgres:Schema is required.");
         }
 
+        if (!string.Equals(options.Schema, "public", StringComparison.OrdinalIgnoreCase))
+        {
+            return ValidateOptionsResult.Fail("Postgres:Schema currently supports only 'public' in the MVP.");
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

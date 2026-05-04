@@ -163,4 +163,21 @@ public sealed class ConfigurationRegistrationTests
         Assert.False(result.Succeeded);
         Assert.Contains("Ingestion:AllowedExtensions must contain at least one extension.", failures);
     }
+
+    [Fact]
+    public void PostgresValidator_ShouldRejectNonPublicSchema()
+    {
+        var validator = new PostgresOptionsValidator();
+        var options = new PostgresOptions
+        {
+            ConnectionString = "Host=localhost;Port=5432;Database=documind;Username=postgres;Password=postgres",
+            Schema = "rag"
+        };
+
+        var result = validator.Validate(name: null, options);
+        var failures = Assert.IsAssignableFrom<IEnumerable<string>>(result.Failures);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("Postgres:Schema currently supports only 'public' in the MVP.", failures);
+    }
 }

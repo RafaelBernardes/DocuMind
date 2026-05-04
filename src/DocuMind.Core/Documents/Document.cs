@@ -5,12 +5,62 @@ public sealed class Document
     private readonly List<Chunk> _chunks = [];
 
     public Document(Guid id, DocumentMetadata metadata, DateTimeOffset? uploadedAtUtc = null)
+        : this(
+            id,
+            metadata,
+            DocumentStatus.Uploaded,
+            uploadedAtUtc?.ToUniversalTime() ?? DateTimeOffset.UtcNow,
+            uploadedAtUtc?.ToUniversalTime() ?? DateTimeOffset.UtcNow,
+            failureReason: null,
+            chunks: null)
+    {
+    }
+
+    private Document(
+        Guid id,
+        DocumentMetadata metadata,
+        DocumentStatus status,
+        DateTimeOffset uploadedAtUtc,
+        DateTimeOffset updatedAtUtc,
+        string? failureReason,
+        IEnumerable<Chunk>? chunks)
     {
         Id = id != Guid.Empty ? id : throw new ArgumentException("Document id is required.", nameof(id));
         Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
-        UploadedAtUtc = uploadedAtUtc?.ToUniversalTime() ?? DateTimeOffset.UtcNow;
-        UpdatedAtUtc = UploadedAtUtc;
-        Status = DocumentStatus.Uploaded;
+        Status = status;
+        UploadedAtUtc = uploadedAtUtc.ToUniversalTime();
+        UpdatedAtUtc = updatedAtUtc.ToUniversalTime();
+        FailureReason = string.IsNullOrWhiteSpace(failureReason) ? null : failureReason.Trim();
+
+        if (chunks is null)
+        {
+            return;
+        }
+
+        var materializedChunks = chunks.ToList();
+        if (materializedChunks.Any(chunk => chunk is null))
+        {
+            throw new ArgumentException("Chunks cannot contain null items during rehydration.", nameof(chunks));
+        }
+
+        if (materializedChunks.Any(chunk => chunk.DocumentId != id))
+        {
+            throw new ArgumentException("All chunks must belong to the document being rehydrated.", nameof(chunks));
+        }
+
+        _chunks.AddRange(materializedChunks);
+    }
+
+    public static Document Rehydrate(
+        Guid id,
+        DocumentMetadata metadata,
+        DocumentStatus status,
+        DateTimeOffset uploadedAtUtc,
+        DateTimeOffset updatedAtUtc,
+        string? failureReason,
+        IEnumerable<Chunk>? chunks)
+    {
+        return new Document(id, metadata, status, uploadedAtUtc, updatedAtUtc, failureReason, chunks);
     }
 
     public Guid Id { get; }
