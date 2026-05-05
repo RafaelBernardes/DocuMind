@@ -1,6 +1,8 @@
 using DocuMind.Core.Documents;
+using DocuMind.Core.Storage;
 using DocuMind.Infrastructure.Configuration;
 using DocuMind.Infrastructure.Persistence;
+using DocuMind.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,13 +38,16 @@ public sealed class PersistenceRegistrationTests
 
         services.AddDocuMindConfiguration(configuration);
         services.AddDocuMindPersistence();
+        services.AddDocuMindStorage();
 
         using var provider = services.BuildServiceProvider();
 
         var dbContext = provider.GetRequiredService<DocuMindDbContext>();
         var repository = provider.GetRequiredService<IDocumentRepository>();
+        var storage = provider.GetRequiredService<IFileStorage>();
 
         Assert.NotNull(dbContext);
         Assert.NotNull(repository);
+        Assert.NotNull(storage);
     }
 }
