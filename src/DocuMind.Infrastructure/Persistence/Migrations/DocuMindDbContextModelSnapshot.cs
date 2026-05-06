@@ -77,6 +77,10 @@ partial class DocuMindDbContextModelSnapshot : ModelSnapshot
                 .HasMaxLength(512)
                 .HasColumnType("character varying(512)");
 
+            builder.Property<string>("StorageRelativePath")
+                .HasMaxLength(1024)
+                .HasColumnType("character varying(1024)");
+
             builder.Property<long>("SizeInBytes")
                 .HasColumnType("bigint");
 

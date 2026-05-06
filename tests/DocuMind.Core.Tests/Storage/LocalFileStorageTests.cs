@@ -69,6 +69,50 @@ public sealed class LocalFileStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task MoveToProcessedAsync_ShouldAllowConfiguredPathsWithTrailingSlashes()
+    {
+        Directory.CreateDirectory(_contentRootPath);
+        var storage = CreateStorage(
+            basePath: "storage/",
+            uploadsPath: "uploads/",
+            processedPath: "processed/");
+        await using var content = new MemoryStream(Encoding.UTF8.GetBytes("processed content"));
+
+        var storedFile = await storage.SaveUploadAsync(
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            "guide.md",
+            content);
+
+        var movedFile = await storage.MoveToProcessedAsync(storedFile.RelativePath);
+
+        Assert.Equal("processed/33333333333333333333333333333333/guide.md", movedFile.RelativePath);
+        Assert.True(File.Exists(Path.Combine(_contentRootPath, "storage", "processed", "33333333333333333333333333333333", "guide.md")));
+    }
+
+    [Fact]
+    public async Task MoveToProcessedAsync_ShouldRejectPathsOutsideUploadsDirectory()
+    {
+        Directory.CreateDirectory(_contentRootPath);
+        var storage = CreateStorage();
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => storage.MoveToProcessedAsync("processed/existing/file.txt"));
+
+        Assert.Equal("relativePath", exception.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_ShouldRejectOverlappingStorageDirectories()
+    {
+        Directory.CreateDirectory(_contentRootPath);
+
+        var exception = Assert.Throws<ArgumentException>(() => CreateStorage(
+            uploadsPath: "uploads",
+            processedPath: "uploads/processed"));
+
+        Assert.Equal("options", exception.ParamName);
+    }
+
+    [Fact]
     public async Task OpenReadAsync_ShouldRejectPathTraversal()
     {
         Directory.CreateDirectory(_contentRootPath);
@@ -85,7 +129,10 @@ public sealed class LocalFileStorageTests : IDisposable
         }
     }
 
-    private IFileStorage CreateStorage()
+    private IFileStorage CreateStorage(
+        string basePath = "storage",
+        string uploadsPath = "uploads",
+        string processedPath = "processed")
     {
         var services = new ServiceCollection();
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(_contentRootPath));
@@ -94,9 +141,9 @@ public sealed class LocalFileStorageTests : IDisposable
         return new LocalFileStorage(
             Options.Create(new LocalStorageOptions
             {
-                BasePath = "storage",
-                UploadsPath = "uploads",
-                ProcessedPath = "processed"
+                BasePath = basePath,
+                UploadsPath = uploadsPath,
+                ProcessedPath = processedPath
             }),
             provider);
     }

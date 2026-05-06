@@ -4,10 +4,16 @@ public sealed class Document
 {
     private readonly List<Chunk> _chunks = [];
 
-    public Document(Guid id, DocumentMetadata metadata, DateTimeOffset? uploadedAtUtc = null)
+    public Document(
+        Guid id,
+        DocumentMetadata metadata,
+        string storageRelativePath,
+        DateTimeOffset? uploadedAtUtc = null)
         : this(
             id,
             metadata,
+            storageRelativePath,
+            requireStorageRelativePath: true,
             DocumentStatus.Uploaded,
             uploadedAtUtc?.ToUniversalTime() ?? DateTimeOffset.UtcNow,
             uploadedAtUtc?.ToUniversalTime() ?? DateTimeOffset.UtcNow,
@@ -19,6 +25,8 @@ public sealed class Document
     private Document(
         Guid id,
         DocumentMetadata metadata,
+        string? storageRelativePath,
+        bool requireStorageRelativePath,
         DocumentStatus status,
         DateTimeOffset uploadedAtUtc,
         DateTimeOffset updatedAtUtc,
@@ -27,6 +35,9 @@ public sealed class Document
     {
         Id = id != Guid.Empty ? id : throw new ArgumentException("Document id is required.", nameof(id));
         Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
+        StorageRelativePath = requireStorageRelativePath
+            ? RequireStorageRelativePath(storageRelativePath!)
+            : NormalizeStorageRelativePath(storageRelativePath);
         Status = status;
         UploadedAtUtc = uploadedAtUtc.ToUniversalTime();
         UpdatedAtUtc = updatedAtUtc.ToUniversalTime();
@@ -54,18 +65,51 @@ public sealed class Document
     public static Document Rehydrate(
         Guid id,
         DocumentMetadata metadata,
+        string? storageRelativePath,
         DocumentStatus status,
         DateTimeOffset uploadedAtUtc,
         DateTimeOffset updatedAtUtc,
         string? failureReason,
         IEnumerable<Chunk>? chunks)
     {
-        return new Document(id, metadata, status, uploadedAtUtc, updatedAtUtc, failureReason, chunks);
+        return NewRehydrated(
+            id,
+            metadata,
+            storageRelativePath,
+            status,
+            uploadedAtUtc,
+            updatedAtUtc,
+            failureReason,
+            chunks);
+    }
+
+    private static Document NewRehydrated(
+        Guid id,
+        DocumentMetadata metadata,
+        string? storageRelativePath,
+        DocumentStatus status,
+        DateTimeOffset uploadedAtUtc,
+        DateTimeOffset updatedAtUtc,
+        string? failureReason,
+        IEnumerable<Chunk>? chunks)
+    {
+        return new Document(
+            id,
+            metadata,
+            storageRelativePath,
+            requireStorageRelativePath: false,
+            status,
+            uploadedAtUtc,
+            updatedAtUtc,
+            failureReason,
+            chunks);
     }
 
     public Guid Id { get; }
 
     public DocumentMetadata Metadata { get; }
+
+    public string? StorageRelativePath { get; }
 
     public DocumentStatus Status { get; private set; }
 
@@ -148,5 +192,19 @@ public sealed class Document
             (DocumentStatus.Failed, DocumentStatus.Processing) => true,
             _ => false
         };
+    }
+
+    private static string RequireStorageRelativePath(string value)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            ? value.Trim().Replace('\\', '/')
+            : throw new ArgumentException("Storage relative path is required.", nameof(value));
+    }
+
+    private static string? NormalizeStorageRelativePath(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim().Replace('\\', '/');
     }
 }

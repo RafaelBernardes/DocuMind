@@ -25,6 +25,9 @@ public sealed class DocumentEntityConfiguration : IEntityTypeConfiguration<Docum
         builder.Property(document => document.Checksum)
             .HasMaxLength(256);
 
+        builder.Property(document => document.StorageRelativePath)
+            .HasMaxLength(1024);
+
         builder.Property(document => document.Status)
             .HasConversion<int>()
             .IsRequired();

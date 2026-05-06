@@ -14,6 +14,8 @@ public sealed class DocumentEntity
 
     public string? Checksum { get; set; }
 
+    public string? StorageRelativePath { get; set; }
+
     public DocumentStatus Status { get; set; }
 
     public DateTimeOffset UploadedAtUtc { get; set; }

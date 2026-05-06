@@ -1,8 +1,6 @@
 using DocuMind.Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DocuMind.Core.Tests.Configuration;
@@ -10,40 +8,41 @@ namespace DocuMind.Core.Tests.Configuration;
 public sealed class ConfigurationRegistrationTests
 {
     [Fact]
-    public async Task StartupFailsWhenCriticalConfigurationIsMissing()
+    public void ResolvingOptionsFailsWhenCriticalConfigurationIsMissing()
     {
-        var builder = Host.CreateApplicationBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Postgres:Schema"] = "public",
-            ["OpenAI:Endpoint"] = "https://api.openai.com/v1/",
-            ["OpenAI:ChatModel"] = "gpt-4.1-mini",
-            ["OpenAI:EmbeddingModel"] = "text-embedding-3-small",
-            ["LocalStorage:BasePath"] = "storage",
-            ["LocalStorage:UploadsPath"] = "uploads",
-            ["LocalStorage:ProcessedPath"] = "processed",
-            ["Ingestion:ChunkSize"] = "1200",
-            ["Ingestion:ChunkOverlap"] = "200",
-            ["Ingestion:MaxFileSizeMb"] = "25",
-            ["Ingestion:AllowedExtensions:0"] = ".pdf",
-            ["Query:TopK"] = "5",
-            ["Query:MinScore"] = "0.7",
-            ["Query:MaxContextChunks"] = "8"
-        });
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Postgres:Schema"] = "public",
+                ["OpenAI:Endpoint"] = "https://api.openai.com/v1/",
+                ["OpenAI:ChatModel"] = "gpt-4.1-mini",
+                ["OpenAI:EmbeddingModel"] = "text-embedding-3-small",
+                ["LocalStorage:BasePath"] = "storage",
+                ["LocalStorage:UploadsPath"] = "uploads",
+                ["LocalStorage:ProcessedPath"] = "processed",
+                ["Ingestion:ChunkSize"] = "1200",
+                ["Ingestion:ChunkOverlap"] = "200",
+                ["Ingestion:MaxFileSizeMb"] = "25",
+                ["Ingestion:AllowedExtensions:0"] = ".pdf",
+                ["Query:TopK"] = "5",
+                ["Query:MinScore"] = "0.7",
+                ["Query:MaxContextChunks"] = "8"
+            })
+            .Build();
 
-        builder.Logging.ClearProviders();
-        builder.Services.AddDocuMindConfiguration(builder.Configuration);
+        services.AddLogging();
+        services.AddDocuMindConfiguration(configuration);
 
-        using var host = builder.Build();
+        using var provider = services.BuildServiceProvider();
 
-        var exception = await Assert.ThrowsAsync<AggregateException>(() => host.StartAsync());
-        var failures = exception.InnerExceptions
-            .OfType<OptionsValidationException>()
-            .SelectMany(validationException => validationException.Failures)
-            .ToArray();
+        var postgresException = Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<PostgresOptions>>().Value);
+        var openAiException = Assert.Throws<OptionsValidationException>(() =>
+            provider.GetRequiredService<IOptions<OpenAiOptions>>().Value);
 
-        Assert.Contains("Postgres:ConnectionString is required.", failures);
-        Assert.Contains("OpenAI:ApiKey is required.", failures);
+        Assert.Contains("Postgres:ConnectionString is required.", postgresException.Failures);
+        Assert.Contains("OpenAI:ApiKey is required.", openAiException.Failures);
     }
 
     [Fact]
@@ -108,6 +107,24 @@ public sealed class ConfigurationRegistrationTests
     }
 
     [Fact]
+    public void LocalStorageValidator_ShouldRejectUnsafeBasePath()
+    {
+        var validator = new LocalStorageOptionsValidator();
+        var options = new LocalStorageOptions
+        {
+            BasePath = "..\\storage",
+            UploadsPath = "uploads",
+            ProcessedPath = "processed"
+        };
+
+        var result = validator.Validate(name: null, options);
+        var failures = Assert.IsAssignableFrom<IEnumerable<string>>(result.Failures);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("LocalStorage:BasePath must be a safe relative path.", failures);
+    }
+
+    [Fact]
     public void LocalStorageValidator_ShouldRejectPathTraversalSegments()
     {
         var validator = new LocalStorageOptionsValidator();
@@ -127,12 +144,46 @@ public sealed class ConfigurationRegistrationTests
     }
 
     [Fact]
-    public void LocalStorageValidator_ShouldRejectAbsolutePaths()
+    public void LocalStorageValidator_ShouldAllowTrailingSlashes()
+    {
+        var validator = new LocalStorageOptionsValidator();
+        var options = new LocalStorageOptions
+        {
+            BasePath = "storage/",
+            UploadsPath = "uploads/",
+            ProcessedPath = "processed/"
+        };
+
+        var result = validator.Validate(name: null, options);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public void LocalStorageValidator_ShouldRejectOverlappingStorageDirectories()
     {
         var validator = new LocalStorageOptionsValidator();
         var options = new LocalStorageOptions
         {
             BasePath = "storage",
+            UploadsPath = "uploads",
+            ProcessedPath = "uploads/processed"
+        };
+
+        var result = validator.Validate(name: null, options);
+        var failures = Assert.IsAssignableFrom<IEnumerable<string>>(result.Failures);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("LocalStorage:UploadsPath and ProcessedPath must be separate non-overlapping directories.", failures);
+    }
+
+    [Fact]
+    public void LocalStorageValidator_ShouldRejectAbsolutePaths()
+    {
+        var validator = new LocalStorageOptionsValidator();
+        var options = new LocalStorageOptions
+        {
+            BasePath = "C:\\storage",
             UploadsPath = "C:\\uploads",
             ProcessedPath = "/processed"
         };
@@ -141,6 +192,7 @@ public sealed class ConfigurationRegistrationTests
         var failures = Assert.IsAssignableFrom<IEnumerable<string>>(result.Failures);
 
         Assert.False(result.Succeeded);
+        Assert.Contains("LocalStorage:BasePath must be a safe relative path.", failures);
         Assert.Contains("LocalStorage:UploadsPath must be a relative path under BasePath.", failures);
         Assert.Contains("LocalStorage:ProcessedPath must be a relative path under BasePath.", failures);
     }

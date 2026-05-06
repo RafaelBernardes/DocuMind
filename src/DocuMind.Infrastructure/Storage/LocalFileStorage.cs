@@ -20,9 +20,16 @@ public sealed class LocalFileStorage : IFileStorage
             ? hostEnvironment.ContentRootPath
             : Directory.GetCurrentDirectory();
 
-        _basePath = Path.GetFullPath(Path.Combine(contentRootPath, storageOptions.BasePath));
-        _uploadsPath = storageOptions.UploadsPath.Trim().Replace('\\', '/');
-        _processedPath = storageOptions.ProcessedPath.Trim().Replace('\\', '/');
+        _basePath = Path.GetFullPath(Path.Combine(contentRootPath, NormalizeRelativePath(storageOptions.BasePath)));
+        _uploadsPath = NormalizeRelativePath(storageOptions.UploadsPath);
+        _processedPath = NormalizeRelativePath(storageOptions.ProcessedPath);
+
+        if (PathsOverlap(_uploadsPath, _processedPath))
+        {
+            throw new ArgumentException(
+                "UploadsPath and ProcessedPath must be separate non-overlapping directories.",
+                nameof(options));
+        }
     }
 
     public async Task<StoredFile> SaveUploadAsync(
@@ -169,6 +176,18 @@ public sealed class LocalFileStorage : IFileStorage
             segments
                 .Select(NormalizeRelativePath)
                 .SelectMany(segment => segment.Split('/', StringSplitOptions.RemoveEmptyEntries)));
+    }
+
+    private static bool PathsOverlap(string firstPath, string secondPath)
+    {
+        return IsSameOrNestedPath(firstPath, secondPath)
+            || IsSameOrNestedPath(secondPath, firstPath);
+    }
+
+    private static bool IsSameOrNestedPath(string parentPath, string candidatePath)
+    {
+        return candidatePath.Equals(parentPath, StringComparison.OrdinalIgnoreCase)
+            || candidatePath.StartsWith(parentPath + '/', StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsWithinStorageRoot(string fullPath)

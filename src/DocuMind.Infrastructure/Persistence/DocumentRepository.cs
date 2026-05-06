@@ -40,6 +40,7 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
         entity.ContentType = document.Metadata.ContentType;
         entity.SizeInBytes = document.Metadata.SizeInBytes;
         entity.Checksum = document.Metadata.Checksum;
+        entity.StorageRelativePath = document.StorageRelativePath;
         entity.Status = document.Status;
         entity.UploadedAtUtc = document.UploadedAtUtc;
         entity.UpdatedAtUtc = document.UpdatedAtUtc;
@@ -71,6 +72,7 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
             ContentType = document.Metadata.ContentType,
             SizeInBytes = document.Metadata.SizeInBytes,
             Checksum = document.Metadata.Checksum,
+            StorageRelativePath = document.StorageRelativePath,
             Status = document.Status,
             UploadedAtUtc = document.UploadedAtUtc,
             UpdatedAtUtc = document.UpdatedAtUtc,
@@ -105,6 +107,7 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
         return Document.Rehydrate(
             entity.Id,
             metadata,
+            entity.StorageRelativePath,
             entity.Status,
             entity.UploadedAtUtc,
             entity.UpdatedAtUtc,

@@ -28,6 +28,11 @@ public sealed class LocalStorageOptionsValidator : IValidateOptions<LocalStorage
             return ValidateOptionsResult.Fail(failures);
         }
 
+        if (!IsSafeRelativePath(options.BasePath))
+        {
+            failures.Add("LocalStorage:BasePath must be a safe relative path.");
+        }
+
         if (!IsRelativeToBasePath(options.BasePath, options.UploadsPath))
         {
             failures.Add("LocalStorage:UploadsPath must be a relative path under BasePath.");
@@ -38,23 +43,27 @@ public sealed class LocalStorageOptionsValidator : IValidateOptions<LocalStorage
             failures.Add("LocalStorage:ProcessedPath must be a relative path under BasePath.");
         }
 
+        if (TryNormalizeRelativePath(options.UploadsPath, out var normalizedUploadsPath)
+            && TryNormalizeRelativePath(options.ProcessedPath, out var normalizedProcessedPath)
+            && PathsOverlap(normalizedUploadsPath, normalizedProcessedPath))
+        {
+            failures.Add("LocalStorage:UploadsPath and ProcessedPath must be separate non-overlapping directories.");
+        }
+
         return failures.Count > 0
             ? ValidateOptionsResult.Fail(failures)
             : ValidateOptionsResult.Success;
     }
 
+    private static bool IsSafeRelativePath(string candidatePath)
+    {
+        return TryNormalizeRelativePath(candidatePath, out _);
+    }
+
     private static bool IsRelativeToBasePath(string basePath, string candidatePath)
     {
-        var normalizedBasePath = Normalize(basePath);
-        var normalizedCandidatePath = Normalize(candidatePath);
-        var segments = normalizedCandidatePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-        if (IsAbsolutePathLike(candidatePath))
-        {
-            return false;
-        }
-
-        if (segments.Any(segment => segment is "." or ".."))
+        if (!TryNormalizeRelativePath(basePath, out var normalizedBasePath)
+            || !TryNormalizeRelativePath(candidatePath, out var normalizedCandidatePath))
         {
             return false;
         }
@@ -65,31 +74,48 @@ public sealed class LocalStorageOptionsValidator : IValidateOptions<LocalStorage
                 StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string Normalize(string path)
+    private static bool TryNormalizeRelativePath(string path, out string normalizedPath)
     {
-        return path
-            .Trim()
-            .Replace('\\', '/')
-            .TrimEnd('/');
-    }
-
-    private static bool IsAbsolutePathLike(string path)
-    {
-        var trimmedPath = path.Trim();
+        normalizedPath = string.Empty;
+        var trimmedPath = path.Trim().Replace('\\', '/');
 
         if (Path.IsPathRooted(trimmedPath))
         {
-            return true;
+            return false;
         }
 
         if (trimmedPath.StartsWith('/') || trimmedPath.StartsWith('\\'))
         {
-            return true;
+            return false;
         }
 
-        return trimmedPath.Length >= 3
+        if (trimmedPath.Length >= 3
             && char.IsAsciiLetter(trimmedPath[0])
             && trimmedPath[1] == ':'
-            && (trimmedPath[2] == '/' || trimmedPath[2] == '\\');
+            && trimmedPath[2] == '/')
+        {
+            return false;
+        }
+
+        var segments = trimmedPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0 || segments.Any(segment => segment is "." or ".."))
+        {
+            return false;
+        }
+
+        normalizedPath = string.Join('/', segments);
+        return true;
+    }
+
+    private static bool PathsOverlap(string firstPath, string secondPath)
+    {
+        return IsSameOrNestedPath(firstPath, secondPath)
+            || IsSameOrNestedPath(secondPath, firstPath);
+    }
+
+    private static bool IsSameOrNestedPath(string parentPath, string candidatePath)
+    {
+        return candidatePath.Equals(parentPath, StringComparison.OrdinalIgnoreCase)
+            || candidatePath.StartsWith(parentPath + '/', StringComparison.OrdinalIgnoreCase);
     }
 }
