@@ -1,4 +1,4 @@
-namespace DocuMind.Api.Documents;
+namespace DocuMind.Api.Documents.Commands.UploadDocument;
 
 public sealed record UploadDocumentResult(
     Guid Id,

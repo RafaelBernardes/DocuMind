@@ -1,11 +1,14 @@
-using DocuMind.Api.Documents;
+using DocuMind.Api.Documents.Commands.UploadDocument;
+using DocuMind.Api.Documents.Queries.GetDocumentById;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DocuMind.Api.Controllers;
 
 [ApiController]
 [Route("v1/documents")]
-public sealed class DocumentsController(UploadDocumentHandler handler) : ControllerBase
+public sealed class DocumentsController(
+    UploadDocumentCommandHandler uploadHandler,
+    GetDocumentByIdQueryHandler getDocumentByIdHandler) : ControllerBase
 {
     [HttpPost]
     [Consumes("multipart/form-data")]
@@ -17,7 +20,7 @@ public sealed class DocumentsController(UploadDocumentHandler handler) : Control
         [FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
-        var result = await handler.HandleAsync(file, cancellationToken);
+        var result = await uploadHandler.HandleAsync(file, cancellationToken);
         if (result.IsSuccess)
         {
             var response = result.Document!;
@@ -39,15 +42,24 @@ public sealed class DocumentsController(UploadDocumentHandler handler) : Control
     }
 
     [HttpGet("{id:guid}", Name = "GetDocumentById")]
-    [ProducesResponseType(StatusCodes.Status501NotImplemented)]
-    public IActionResult GetByIdPlaceholder(Guid id)
+    [ProducesResponseType<GetDocumentByIdResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        return StatusCode(
-            StatusCodes.Status501NotImplemented,
-            new ProblemDetails
-            {
-                Title = "Document retrieval not implemented yet.",
-                Detail = $"The GET /v1/documents/{id} endpoint is planned for T07."
-            });
+        var result = await getDocumentByIdHandler.HandleAsync(id, cancellationToken);
+        if (result.IsSuccess)
+        {
+            return Ok(result.Document);
+        }
+
+        var problemDetails = new ProblemDetails
+        {
+            Title = "Document retrieval failed.",
+            Detail = result.ErrorMessage,
+            Status = result.StatusCode
+        };
+        problemDetails.Extensions["code"] = result.ErrorCode;
+
+        return StatusCode(result.StatusCode!.Value, problemDetails);
     }
 }

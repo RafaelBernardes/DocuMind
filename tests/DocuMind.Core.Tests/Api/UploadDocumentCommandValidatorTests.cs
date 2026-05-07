@@ -1,12 +1,12 @@
-using DocuMind.Api.Documents;
+using DocuMind.Api.Documents.Commands.UploadDocument;
 using DocuMind.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Http;
 
 namespace DocuMind.Core.Tests.Api;
 
-public sealed class UploadDocumentRequestValidatorTests
+public sealed class UploadDocumentCommandValidatorTests
 {
-    private readonly UploadDocumentRequestValidator _validator = new();
+    private readonly UploadDocumentCommandValidator _validator = new();
 
     [Fact]
     public void Validate_ShouldRejectMissingFile()

@@ -1,4 +1,4 @@
-using DocuMind.Api.Documents;
+using DocuMind.Api.Documents.Commands.UploadDocument;
 using DocuMind.Core.Documents;
 using DocuMind.Core.Storage;
 using DocuMind.Infrastructure.Configuration;
@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace DocuMind.Core.Tests.Api;
 
-public sealed class UploadDocumentHandlerTests
+public sealed class UploadDocumentCommandHandlerTests
 {
     [Fact]
     public async Task HandleAsync_ShouldPersistUploadedDocument()
@@ -61,12 +61,12 @@ public sealed class UploadDocumentHandlerTests
         Assert.False(storage.SaveCalled);
     }
 
-    private static UploadDocumentHandler CreateHandler(
+    private static UploadDocumentCommandHandler CreateHandler(
         FakeDocumentRepository repository,
         FakeFileStorage storage,
         int maxFileSizeMb = 25)
     {
-        return new UploadDocumentHandler(
+        return new UploadDocumentCommandHandler(
             repository,
             storage,
             Options.Create(new IngestionOptions
@@ -74,7 +74,7 @@ public sealed class UploadDocumentHandlerTests
                 MaxFileSizeMb = maxFileSizeMb,
                 AllowedExtensions = [".pdf", ".md", ".txt"]
             }),
-            new UploadDocumentRequestValidator());
+            new UploadDocumentCommandValidator());
     }
 
     private static IFormFile CreateFormFile(string fileName, string contentType, string content)

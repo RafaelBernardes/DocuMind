@@ -1,9 +1,9 @@
 using DocuMind.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Http;
 
-namespace DocuMind.Api.Documents;
+namespace DocuMind.Api.Documents.Commands.UploadDocument;
 
-public sealed class UploadDocumentRequestValidator
+public sealed class UploadDocumentCommandValidator
 {
     public UploadValidationResult Validate(IFormFile? file, IngestionOptions options)
     {

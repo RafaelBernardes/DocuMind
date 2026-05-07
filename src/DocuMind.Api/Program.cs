@@ -1,4 +1,5 @@
-using DocuMind.Api.Documents;
+using DocuMind.Api.Documents.Commands.UploadDocument;
+using DocuMind.Api.Documents.Queries.GetDocumentById;
 using DocuMind.Infrastructure.Configuration;
 using DocuMind.Infrastructure.Persistence;
 using DocuMind.Infrastructure.Storage;
@@ -9,8 +10,9 @@ builder.Services.AddControllers();
 builder.Services.AddDocuMindConfiguration(builder.Configuration);
 builder.Services.AddDocuMindPersistence();
 builder.Services.AddDocuMindStorage();
-builder.Services.AddScoped<UploadDocumentHandler>();
-builder.Services.AddSingleton<UploadDocumentRequestValidator>();
+builder.Services.AddScoped<GetDocumentByIdQueryHandler>();
+builder.Services.AddScoped<UploadDocumentCommandHandler>();
+builder.Services.AddSingleton<UploadDocumentCommandValidator>();
 
 var app = builder.Build();
 

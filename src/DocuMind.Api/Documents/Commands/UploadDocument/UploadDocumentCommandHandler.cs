@@ -4,13 +4,13 @@ using DocuMind.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
-namespace DocuMind.Api.Documents;
+namespace DocuMind.Api.Documents.Commands.UploadDocument;
 
-public sealed class UploadDocumentHandler(
+public sealed class UploadDocumentCommandHandler(
     IDocumentRepository documentRepository,
     IFileStorage fileStorage,
     IOptions<IngestionOptions> ingestionOptions,
-    UploadDocumentRequestValidator requestValidator)
+    UploadDocumentCommandValidator requestValidator)
 {
     public async Task<UploadDocumentOperationResult> HandleAsync(
         IFormFile? file,
