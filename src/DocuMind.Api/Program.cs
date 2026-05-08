@@ -3,6 +3,7 @@ using DocuMind.Api.Documents.Queries.GetDocumentById;
 using DocuMind.Infrastructure.Configuration;
 using DocuMind.Infrastructure.Persistence;
 using DocuMind.Infrastructure.Storage;
+using DocuMind.Infrastructure.TextExtraction;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddDocuMindConfiguration(builder.Configuration);
 builder.Services.AddDocuMindPersistence();
 builder.Services.AddDocuMindStorage();
+builder.Services.AddDocuMindTextExtraction();
 builder.Services.AddScoped<GetDocumentByIdQueryHandler>();
 builder.Services.AddScoped<UploadDocumentCommandHandler>();
 builder.Services.AddSingleton<UploadDocumentCommandValidator>();
@@ -25,3 +27,5 @@ app.MapGet("/", () => Results.Ok(new
 app.MapControllers();
 
 app.Run();
+
+public partial class Program;
