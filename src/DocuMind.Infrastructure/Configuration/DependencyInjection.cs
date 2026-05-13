@@ -12,8 +12,7 @@ public static class DependencyInjection
     {
         services.AddValidatedOptions<PostgresOptions, PostgresOptionsValidator>(
             configuration.GetSection(PostgresOptions.SectionName));
-        services.AddValidatedOptions<OpenAiOptions, OpenAiOptionsValidator>(
-            configuration.GetSection(OpenAiOptions.SectionName));
+        services.AddOpenAiOptions(configuration);
         services.AddValidatedOptions<LocalStorageOptions, LocalStorageOptionsValidator>(
             configuration.GetSection(LocalStorageOptions.SectionName));
         services.AddValidatedOptions<IngestionOptions, IngestionOptionsValidator>(
@@ -22,6 +21,43 @@ public static class DependencyInjection
             configuration.GetSection(QueryOptions.SectionName));
 
         return services;
+    }
+
+    private static IServiceCollection AddOpenAiOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddSingleton<IValidateOptions<OpenAiOptions>, OpenAiOptionsValidator>();
+        services
+            .AddOptions<OpenAiOptions>()
+            .Bind(configuration.GetSection(OpenAiOptions.SectionName))
+            .Configure(options =>
+            {
+                options.ApiKey = ResolveOpenAiApiKeyFromEnvironment();
+            })
+            .ValidateOnStart();
+
+        return services;
+    }
+
+    private static string ResolveOpenAiApiKeyFromEnvironment()
+    {
+        return FirstNonEmpty(
+            Environment.GetEnvironmentVariable(OpenAiOptions.ApiKeyEnvironmentVariableName))
+            ?? string.Empty;
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return null;
     }
 
     private static IServiceCollection AddValidatedOptions<TOptions, TValidator>(

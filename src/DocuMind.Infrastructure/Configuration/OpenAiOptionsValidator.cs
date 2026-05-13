@@ -18,7 +18,8 @@ public sealed class OpenAiOptionsValidator : IValidateOptions<OpenAiOptions>
 
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
-            return ValidateOptionsResult.Fail("OpenAI:ApiKey is required.");
+            return ValidateOptionsResult.Fail(
+                $"OpenAI API key is required via environment variable '{OpenAiOptions.ApiKeyEnvironmentVariableName}'.");
         }
 
         if (string.IsNullOrWhiteSpace(options.ChatModel))

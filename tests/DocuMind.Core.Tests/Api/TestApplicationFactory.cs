@@ -13,6 +13,8 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly InMemoryDocumentRepository _repository = new();
     private readonly InMemoryFileStorage _fileStorage = new();
+    private readonly TestEnvironmentVariableScope _openAiApiKeyScope =
+        new(OpenAiOptions.ApiKeyEnvironmentVariableName, "test-api-key");
 
     public InMemoryDocumentRepository Repository => _repository;
 
@@ -27,7 +29,6 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
                 [$"{PostgresOptions.SectionName}:ConnectionString"] = "Host=localhost;Database=documind_test;Username=test;Password=test",
                 [$"{PostgresOptions.SectionName}:Schema"] = "public",
                 [$"{OpenAiOptions.SectionName}:Endpoint"] = "https://api.openai.test",
-                [$"{OpenAiOptions.SectionName}:ApiKey"] = "test-api-key",
                 [$"{OpenAiOptions.SectionName}:ChatModel"] = "gpt-test",
                 [$"{OpenAiOptions.SectionName}:EmbeddingModel"] = "text-embedding-test",
                 [$"{LocalStorageOptions.SectionName}:BasePath"] = "storage",
@@ -53,6 +54,16 @@ public sealed class TestApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton<IDocumentRepository>(_repository);
             services.AddSingleton<IFileStorage>(_fileStorage);
         });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _openAiApiKeyScope.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }
 

@@ -10,6 +10,8 @@ public sealed class ConfigurationRegistrationTests
     [Fact]
     public void ResolvingOptionsFailsWhenCriticalConfigurationIsMissing()
     {
+        using var _ = new TestEnvironmentVariableScope(OpenAiOptions.ApiKeyEnvironmentVariableName, null);
+
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -42,12 +44,16 @@ public sealed class ConfigurationRegistrationTests
             provider.GetRequiredService<IOptions<OpenAiOptions>>().Value);
 
         Assert.Contains("Postgres:ConnectionString is required.", postgresException.Failures);
-        Assert.Contains("OpenAI:ApiKey is required.", openAiException.Failures);
+        Assert.Contains(
+            $"OpenAI API key is required via environment variable '{OpenAiOptions.ApiKeyEnvironmentVariableName}'.",
+            openAiException.Failures);
     }
 
     [Fact]
     public void ResolvedOptionsAreTypedWhenConfigurationIsValid()
     {
+        using var _ = new TestEnvironmentVariableScope(OpenAiOptions.ApiKeyEnvironmentVariableName, "test-key");
+
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -55,7 +61,6 @@ public sealed class ConfigurationRegistrationTests
                 ["Postgres:ConnectionString"] = "Host=localhost;Port=5432;Database=documind;Username=postgres;Password=postgres",
                 ["Postgres:Schema"] = "public",
                 ["OpenAI:Endpoint"] = "https://api.openai.com/v1/",
-                ["OpenAI:ApiKey"] = "test-key",
                 ["OpenAI:ChatModel"] = "gpt-4.1-mini",
                 ["OpenAI:EmbeddingModel"] = "text-embedding-3-small",
                 ["LocalStorage:BasePath"] = "storage",
@@ -83,6 +88,7 @@ public sealed class ConfigurationRegistrationTests
 
         Assert.Equal("public", postgres.Schema);
         Assert.Equal("gpt-4.1-mini", openAi.ChatModel);
+        Assert.Equal("test-key", openAi.ApiKey);
         Assert.Equal("uploads", storage.UploadsPath);
         Assert.Equal(1200, ingestion.ChunkSize);
         Assert.Equal(5, query.TopK);
