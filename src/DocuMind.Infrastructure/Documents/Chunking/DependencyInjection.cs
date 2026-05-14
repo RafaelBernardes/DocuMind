@@ -1,7 +1,7 @@
 using DocuMind.Core.Documents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DocuMind.Infrastructure.Chunking;
+namespace DocuMind.Infrastructure.Documents.Chunking;
 
 public static class DependencyInjection
 {

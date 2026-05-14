@@ -121,6 +121,19 @@ public sealed class LocalFileStorageTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => storage.OpenReadAsync("../secrets.txt"));
     }
 
+    [Fact]
+    public async Task DeleteAsync_ShouldRemovePersistedFile()
+    {
+        Directory.CreateDirectory(_contentRootPath);
+        var storage = CreateStorage();
+        await using var content = new MemoryStream(Encoding.UTF8.GetBytes("delete me"));
+
+        var storedFile = await storage.SaveUploadAsync(Guid.NewGuid(), "notes.txt", content);
+        await storage.DeleteAsync(storedFile.RelativePath);
+
+        Assert.False(File.Exists(Path.Combine(_contentRootPath, "storage", storedFile.RelativePath.Replace('/', Path.DirectorySeparatorChar))));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_contentRootPath))

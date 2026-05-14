@@ -15,4 +15,8 @@ public interface IFileStorage
     Task<StoredFile> MoveToProcessedAsync(
         string relativePath,
         CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(
+        string relativePath,
+        CancellationToken cancellationToken = default);
 }

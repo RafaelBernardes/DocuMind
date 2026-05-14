@@ -98,6 +98,42 @@ partial class DocuMindDbContextModelSnapshot : ModelSnapshot
             builder.ToTable("documents", "public");
         });
 
+        modelBuilder.Entity("DocuMind.Infrastructure.Persistence.Entities.OutboxMessageEntity", builder =>
+        {
+            builder.Property<Guid>("Id")
+                .HasColumnType("uuid");
+
+            builder.Property<Guid>("DocumentId")
+                .HasColumnType("uuid");
+
+            builder.Property<string>("Error")
+                .HasMaxLength(2048)
+                .HasColumnType("character varying(2048)");
+
+            builder.Property<DateTimeOffset>("OccurredAtUtc")
+                .HasColumnType("timestamp with time zone");
+
+            builder.Property<string>("Payload")
+                .IsRequired()
+                .HasColumnType("text");
+
+            builder.Property<DateTimeOffset?>("ProcessedAtUtc")
+                .HasColumnType("timestamp with time zone");
+
+            builder.Property<string>("Type")
+                .IsRequired()
+                .HasMaxLength(256)
+                .HasColumnType("character varying(256)");
+
+            builder.HasKey("Id");
+
+            builder.HasIndex("ProcessedAtUtc");
+
+            builder.HasIndex("DocumentId", "Type");
+
+            builder.ToTable("outbox_messages", "public");
+        });
+
         modelBuilder.Entity("DocuMind.Infrastructure.Persistence.Entities.DocumentChunkEntity", builder =>
         {
             builder.HasOne("DocuMind.Infrastructure.Persistence.Entities.DocumentEntity", "Document")

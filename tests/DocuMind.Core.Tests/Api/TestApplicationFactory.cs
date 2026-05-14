@@ -156,4 +156,14 @@ public sealed class InMemoryFileStorage : IFileStorage
     {
         throw new NotSupportedException();
     }
+
+    public Task DeleteAsync(string relativePath, CancellationToken cancellationToken = default)
+    {
+        lock (_syncRoot)
+        {
+            _files.Remove(relativePath);
+        }
+
+        return Task.CompletedTask;
+    }
 }

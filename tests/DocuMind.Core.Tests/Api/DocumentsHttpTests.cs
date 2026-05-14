@@ -5,6 +5,7 @@ using DocuMind.Core.Documents;
 
 namespace DocuMind.Core.Tests.Api;
 
+[Collection(DocuMind.Core.Tests.EnvironmentVariablesCollection.Name)]
 public sealed class DocumentsHttpTests
 {
     [Fact]

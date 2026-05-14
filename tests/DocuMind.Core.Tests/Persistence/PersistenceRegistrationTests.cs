@@ -1,16 +1,17 @@
 using DocuMind.Core.Documents;
 using DocuMind.Core.Storage;
-using DocuMind.Infrastructure.Chunking;
 using DocuMind.Infrastructure.Configuration;
+using DocuMind.Infrastructure.Documents.Chunking;
+using DocuMind.Infrastructure.Documents.TextExtraction;
 using DocuMind.Infrastructure.Embeddings;
 using DocuMind.Infrastructure.Persistence;
 using DocuMind.Infrastructure.Storage;
-using DocuMind.Infrastructure.TextExtraction;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DocuMind.Core.Tests.Persistence;
 
+[Collection(DocuMind.Core.Tests.EnvironmentVariablesCollection.Name)]
 public sealed class PersistenceRegistrationTests
 {
     [Fact]

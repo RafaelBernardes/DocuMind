@@ -1,24 +1,22 @@
 using DocuMind.Api.Documents.Commands.UploadDocument;
 using DocuMind.Api.Documents.Queries.GetDocumentById;
-using DocuMind.Infrastructure.Chunking;
 using DocuMind.Infrastructure.Configuration;
-using DocuMind.Infrastructure.Embeddings;
+using DocuMind.Infrastructure.Messaging;
+using DocuMind.Infrastructure.Messaging.Outbox;
 using DocuMind.Infrastructure.Persistence;
 using DocuMind.Infrastructure.Storage;
-using DocuMind.Infrastructure.TextExtraction;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddDocuMindConfiguration(builder.Configuration);
+builder.Services.AddDocuMindConfiguration(builder.Configuration, includeOpenAi: false);
 builder.Services.AddDocuMindPersistence();
 builder.Services.AddDocuMindStorage();
-builder.Services.AddDocuMindChunking();
-builder.Services.AddDocuMindEmbeddings();
-builder.Services.AddDocuMindTextExtraction();
+builder.Services.AddDocuMindMessaging();
 builder.Services.AddScoped<GetDocumentByIdQueryHandler>();
 builder.Services.AddScoped<UploadDocumentCommandHandler>();
 builder.Services.AddSingleton<UploadDocumentCommandValidator>();
+builder.Services.AddHostedService<OutboxPublisherHostedService>();
 
 var app = builder.Build();
 

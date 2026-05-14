@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace DocuMind.Core.Tests.Configuration;
 
+[Collection(DocuMind.Core.Tests.EnvironmentVariablesCollection.Name)]
 public sealed class ConfigurationRegistrationTests
 {
     [Fact]

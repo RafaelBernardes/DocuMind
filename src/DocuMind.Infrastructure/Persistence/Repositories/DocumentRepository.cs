@@ -1,11 +1,15 @@
 using DocuMind.Core.Documents;
+using DocuMind.Core.Documents.IntegrationEvents;
 using DocuMind.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
-namespace DocuMind.Infrastructure.Persistence;
+namespace DocuMind.Infrastructure.Persistence.Repositories;
 
 public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentRepository
 {
+    private const string DocumentUploadedMessageType = "documents.uploaded";
+
     public async Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entity = await dbContext.Documents
@@ -21,8 +25,10 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
         ArgumentNullException.ThrowIfNull(document);
 
         var entity = MapToEntity(document);
+        var outboxMessage = MapUploadedDocumentToOutboxMessage(document);
 
         await dbContext.Documents.AddAsync(entity, cancellationToken);
+        await dbContext.OutboxMessages.AddAsync(outboxMessage, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -63,7 +69,7 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
         await transaction.CommitAsync(cancellationToken);
     }
 
-    private static DocumentEntity MapToEntity(Document document)
+    internal static DocumentEntity MapToEntity(Document document)
     {
         return new DocumentEntity
         {
@@ -127,6 +133,28 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
             TokenCount = chunk.Metadata.TokenCount,
             PageLabel = chunk.Metadata.PageLabel,
             Embedding = null
+        };
+    }
+
+    private static OutboxMessageEntity MapUploadedDocumentToOutboxMessage(Document document)
+    {
+        var message = new DocumentUploadedMessage(
+            document.Id,
+            document.Metadata.FileName,
+            document.Metadata.ContentType,
+            document.Metadata.SizeInBytes,
+            document.StorageRelativePath,
+            document.UploadedAtUtc);
+
+        return new OutboxMessageEntity
+        {
+            Id = Guid.NewGuid(),
+            Type = DocumentUploadedMessageType,
+            DocumentId = document.Id,
+            Payload = JsonSerializer.Serialize(message),
+            OccurredAtUtc = document.UploadedAtUtc,
+            ProcessedAtUtc = null,
+            Error = null
         };
     }
 }

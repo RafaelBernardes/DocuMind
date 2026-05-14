@@ -1,4 +1,4 @@
-namespace DocuMind.Infrastructure.TextExtraction;
+namespace DocuMind.Infrastructure.Documents.TextExtraction;
 
 internal static class TextExtractionNormalization
 {

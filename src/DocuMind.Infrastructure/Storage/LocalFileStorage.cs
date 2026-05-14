@@ -117,6 +117,21 @@ public sealed class LocalFileStorage : IFileStorage
         return Task.FromResult(new StoredFile(processedRelativePath, fileInfo.Length));
     }
 
+    public Task DeleteAsync(
+        string relativePath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fullPath = ResolveFullPath(relativePath);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private string ResolveFullPath(string relativePath)
     {
         var normalizedPath = NormalizeRelativePath(relativePath);

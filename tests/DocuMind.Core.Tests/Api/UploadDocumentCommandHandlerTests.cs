@@ -29,6 +29,19 @@ public sealed class UploadDocumentCommandHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_ShouldDeleteStoredFileWhenPersistenceFails()
+    {
+        var repository = new FakeDocumentRepository { ThrowOnAdd = true };
+        var storage = new FakeFileStorage();
+        var handler = CreateHandler(repository, storage);
+        var file = CreateFormFile("manual.pdf", "application/pdf", "contract body");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(file));
+
+        Assert.True(storage.DeleteCalled);
+    }
+
+    [Fact]
     public async Task HandleAsync_ShouldRejectUnsupportedExtensionWithoutPersisting()
     {
         var repository = new FakeDocumentRepository();
@@ -92,6 +105,7 @@ public sealed class UploadDocumentCommandHandlerTests
     private sealed class FakeDocumentRepository : IDocumentRepository
     {
         public Document? AddedDocument { get; private set; }
+        public bool ThrowOnAdd { get; init; }
 
         public Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
@@ -100,6 +114,11 @@ public sealed class UploadDocumentCommandHandlerTests
 
         public Task AddAsync(Document document, CancellationToken cancellationToken = default)
         {
+            if (ThrowOnAdd)
+            {
+                throw new InvalidOperationException("Simulated persistence failure.");
+            }
+
             AddedDocument = document;
             return Task.CompletedTask;
         }
@@ -113,6 +132,7 @@ public sealed class UploadDocumentCommandHandlerTests
     private sealed class FakeFileStorage : IFileStorage
     {
         public bool SaveCalled { get; private set; }
+        public bool DeleteCalled { get; private set; }
 
         public StoredFile StoredFile { get; private set; } = new("uploads/default/file.pdf", 0);
 
@@ -142,6 +162,12 @@ public sealed class UploadDocumentCommandHandlerTests
         public Task<StoredFile> MoveToProcessedAsync(string relativePath, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
+        }
+
+        public Task DeleteAsync(string relativePath, CancellationToken cancellationToken = default)
+        {
+            DeleteCalled = true;
+            return Task.CompletedTask;
         }
     }
 }

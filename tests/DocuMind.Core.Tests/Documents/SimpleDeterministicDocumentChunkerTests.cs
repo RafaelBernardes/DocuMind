@@ -1,5 +1,5 @@
 using DocuMind.Core.Documents;
-using DocuMind.Infrastructure.Chunking;
+using DocuMind.Infrastructure.Documents.Chunking;
 using DocuMind.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 

@@ -1,5 +1,6 @@
 using DocuMind.Core.Documents;
 using DocuMind.Infrastructure.Configuration;
+using DocuMind.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pgvector.EntityFrameworkCore;

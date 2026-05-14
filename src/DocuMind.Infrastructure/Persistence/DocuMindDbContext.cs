@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace DocuMind.Infrastructure.Persistence;
 
-public sealed class DocuMindDbContext(
+public class DocuMindDbContext(
     DbContextOptions<DocuMindDbContext> options,
     IOptions<PostgresOptions> postgresOptions) : DbContext(options)
 {
@@ -14,6 +14,8 @@ public sealed class DocuMindDbContext(
     public DbSet<DocumentEntity> Documents => Set<DocumentEntity>();
 
     public DbSet<DocumentChunkEntity> DocumentChunks => Set<DocumentChunkEntity>();
+
+    public DbSet<OutboxMessageEntity> OutboxMessages => Set<OutboxMessageEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

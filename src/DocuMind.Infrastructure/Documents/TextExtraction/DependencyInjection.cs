@@ -1,7 +1,7 @@
 using DocuMind.Core.Documents;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DocuMind.Infrastructure.TextExtraction;
+namespace DocuMind.Infrastructure.Documents.TextExtraction;
 
 public static class DependencyInjection
 {

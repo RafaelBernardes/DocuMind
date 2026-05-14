@@ -1,7 +1,7 @@
 using DocuMind.Core.Documents;
 using UglyToad.PdfPig;
 
-namespace DocuMind.Infrastructure.TextExtraction;
+namespace DocuMind.Infrastructure.Documents.TextExtraction;
 
 internal sealed class PdfTextExtractionStrategy : ITextExtractionStrategy
 {

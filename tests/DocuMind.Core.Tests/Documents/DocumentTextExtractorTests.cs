@@ -1,6 +1,6 @@
 using System.Text;
 using DocuMind.Core.Documents;
-using DocuMind.Infrastructure.TextExtraction;
+using DocuMind.Infrastructure.Documents.TextExtraction;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DocuMind.Core.Tests.Documents;

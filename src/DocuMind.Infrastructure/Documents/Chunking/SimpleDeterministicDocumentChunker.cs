@@ -4,7 +4,7 @@ using DocuMind.Core.Documents;
 using DocuMind.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 
-namespace DocuMind.Infrastructure.Chunking;
+namespace DocuMind.Infrastructure.Documents.Chunking;
 
 public sealed class SimpleDeterministicDocumentChunker : IDocumentChunker
 {

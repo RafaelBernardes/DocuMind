@@ -40,7 +40,15 @@ public sealed class UploadDocumentCommandHandler(
             storedFile.SizeInBytes);
 
         var document = new Document(documentId, metadata, storedFile.RelativePath);
-        await documentRepository.AddAsync(document, cancellationToken);
+        try
+        {
+            await documentRepository.AddAsync(document, cancellationToken);
+        }
+        catch
+        {
+            await DeleteStoredFileSafelyAsync(fileStorage, storedFile.RelativePath, cancellationToken);
+            throw;
+        }
 
         return UploadDocumentOperationResult.Success(new UploadDocumentResult(
             document.Id,
@@ -56,6 +64,21 @@ public sealed class UploadDocumentCommandHandler(
         return string.IsNullOrWhiteSpace(contentType)
             ? "application/octet-stream"
             : contentType.Trim();
+    }
+
+    private static async Task DeleteStoredFileSafelyAsync(
+        IFileStorage fileStorage,
+        string relativePath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await fileStorage.DeleteAsync(relativePath, cancellationToken);
+        }
+        catch
+        {
+            // Best effort cleanup to reduce orphaned files if the database write fails.
+        }
     }
 }
 

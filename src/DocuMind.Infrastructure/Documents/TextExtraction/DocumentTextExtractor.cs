@@ -1,6 +1,6 @@
 using DocuMind.Core.Documents;
 
-namespace DocuMind.Infrastructure.TextExtraction;
+namespace DocuMind.Infrastructure.Documents.TextExtraction;
 
 internal sealed class DocumentTextExtractor(IEnumerable<ITextExtractionStrategy> strategies) : IDocumentTextExtractor
 {

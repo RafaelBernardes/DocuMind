@@ -8,11 +8,18 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddDocuMindConfiguration(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool includeOpenAi = true)
     {
         services.AddValidatedOptions<PostgresOptions, PostgresOptionsValidator>(
             configuration.GetSection(PostgresOptions.SectionName));
-        services.AddOpenAiOptions(configuration);
+        if (includeOpenAi)
+        {
+            services.AddOpenAiOptions(configuration);
+        }
+
+        services.AddValidatedOptions<RabbitMqOptions, RabbitMqOptionsValidator>(
+            configuration.GetSection(RabbitMqOptions.SectionName));
         services.AddValidatedOptions<LocalStorageOptions, LocalStorageOptionsValidator>(
             configuration.GetSection(LocalStorageOptions.SectionName));
         services.AddValidatedOptions<IngestionOptions, IngestionOptionsValidator>(
