@@ -1,0 +1,11 @@
+.git
+.gitignore
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/TestResults
+**/CodeCoverage
+docs
+.env
+worker-build.log
