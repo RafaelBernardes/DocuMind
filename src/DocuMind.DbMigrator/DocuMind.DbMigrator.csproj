@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\DocuMind.Core\DocuMind.Core.csproj" />
     <ProjectReference Include="..\DocuMind.Infrastructure\DocuMind.Infrastructure.csproj" />
   </ItemGroup>
 

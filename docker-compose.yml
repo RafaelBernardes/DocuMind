@@ -1,3 +1,27 @@
+x-documind-runtime-env: &documind-runtime-env
+  ASPNETCORE_ENVIRONMENT: Development
+  Postgres__ConnectionString: Host=postgres;Port=5432;Database=documind;Username=postgres;Password=postgres
+  Postgres__Schema: public
+  LocalStorage__BasePath: storage
+  LocalStorage__UploadsPath: uploads
+  LocalStorage__ProcessedPath: processed
+  RabbitMQ__Enabled: "true"
+  RabbitMQ__HostName: rabbitmq
+  RabbitMQ__Port: "5672"
+  RabbitMQ__UserName: guest
+  RabbitMQ__Password: guest
+  RabbitMQ__VirtualHost: /
+  RabbitMQ__ExchangeName: documents.ingestion
+  RabbitMQ__QueueName: documents.ingestion.requested
+  RabbitMQ__RoutingKey: documents.uploaded
+  RabbitMQ__DeadLetterExchangeName: documents.ingestion.dlx
+  RabbitMQ__DeadLetterQueueName: documents.ingestion.requested.dlq
+  RabbitMQ__DeadLetterRoutingKey: documents.uploaded.dlq
+  RabbitMQ__PrefetchCount: "1"
+  RabbitMQ__PublishBatchSize: "20"
+  RabbitMQ__PollIntervalSeconds: "2"
+  DOCUMIND_OPENAI_API_KEY: ${DOCUMIND_OPENAI_API_KEY:-}
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -28,6 +52,20 @@ services:
       timeout: 5s
       retries: 10
 
+  migrator:
+    build:
+      context: .
+      dockerfile: src/DocuMind.DbMigrator/Dockerfile
+    container_name: documind-db-migrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Postgres__ConnectionString: Host=postgres;Port=5432;Database=documind;Username=postgres;Password=postgres
+      Postgres__Schema: public
+    restart: "no"
+
   api:
     build:
       context: .
@@ -36,34 +74,32 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      <<: *documind-runtime-env
       ASPNETCORE_URLS: http://+:8080
-      Postgres__ConnectionString: Host=postgres;Port=5432;Database=documind;Username=postgres;Password=postgres
-      Postgres__Schema: public
-      LocalStorage__BasePath: storage
-      LocalStorage__UploadsPath: uploads
-      LocalStorage__ProcessedPath: processed
-      RabbitMQ__Enabled: "true"
-      RabbitMQ__HostName: rabbitmq
-      RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: guest
-      RabbitMQ__Password: guest
-      RabbitMQ__VirtualHost: /
-      RabbitMQ__ExchangeName: documents.ingestion
-      RabbitMQ__QueueName: documents.ingestion.requested
-      RabbitMQ__RoutingKey: documents.uploaded
-      RabbitMQ__DeadLetterExchangeName: documents.ingestion.dlx
-      RabbitMQ__DeadLetterQueueName: documents.ingestion.requested.dlq
-      RabbitMQ__DeadLetterRoutingKey: documents.uploaded.dlq
-      RabbitMQ__PrefetchCount: "1"
-      RabbitMQ__PublishBatchSize: "20"
-      RabbitMQ__PollIntervalSeconds: "2"
-      DOCUMIND_OPENAI_API_KEY: ${DOCUMIND_OPENAI_API_KEY:-}
     ports:
       - "8080:8080"
+    volumes:
+      - documind-storage:/app/storage
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/DocuMind.Worker/Dockerfile
+    container_name: documind-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      <<: *documind-runtime-env
     volumes:
       - documind-storage:/app/storage
 
