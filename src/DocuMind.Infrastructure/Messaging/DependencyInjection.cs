@@ -1,3 +1,5 @@
+using DocuMind.Core.Documents;
+using DocuMind.Infrastructure.Documents.Ingestion;
 using DocuMind.Infrastructure.Messaging.DocumentIngestion;
 using DocuMind.Infrastructure.Messaging.Outbox;
 using DocuMind.Infrastructure.Messaging.RabbitMq;
@@ -9,11 +11,14 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddDocuMindMessaging(this IServiceCollection services)
     {
-        services.AddSingleton<RabbitMqConnectionFactory>();
+        services.AddSingleton<IRabbitMqConnectionFactory, RabbitMqConnectionFactory>();
         services.AddSingleton<RabbitMqTopologyInitializer>();
+        services.AddSingleton<IRabbitMqTopologyInitializer>(serviceProvider =>
+            serviceProvider.GetRequiredService<RabbitMqTopologyInitializer>());
         services.AddScoped<OutboxPublisherService>();
         services.AddSingleton<IOutboxMessagePublisher, RabbitMqOutboxMessagePublisher>();
-        services.AddSingleton<IDocumentIngestionMessageHandler, DocumentIngestionNoOpMessageHandler>();
+        services.AddScoped<IDocumentIngestionPipeline, DocumentIngestionPipeline>();
+        services.AddScoped<IDocumentIngestionMessageHandler, DocumentIngestionMessageHandler>();
 
         return services;
     }

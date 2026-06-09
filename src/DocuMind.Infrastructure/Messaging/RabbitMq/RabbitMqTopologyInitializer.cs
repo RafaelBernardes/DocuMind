@@ -5,8 +5,8 @@ using RabbitMQ.Client;
 namespace DocuMind.Infrastructure.Messaging.RabbitMq;
 
 public sealed class RabbitMqTopologyInitializer(
-    RabbitMqConnectionFactory connectionFactory,
-    IOptions<RabbitMqOptions> options)
+    IRabbitMqConnectionFactory connectionFactory,
+    IOptions<RabbitMqOptions> options) : IRabbitMqTopologyInitializer
 {
     private readonly RabbitMqOptions _options = options.Value;
 
@@ -19,7 +19,7 @@ public sealed class RabbitMqTopologyInitializer(
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        await using var connection = await connectionFactory.Create().CreateConnectionAsync(cancellationToken);
+        await using var connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
         await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
 
         var mainQueueArguments = new Dictionary<string, object?>

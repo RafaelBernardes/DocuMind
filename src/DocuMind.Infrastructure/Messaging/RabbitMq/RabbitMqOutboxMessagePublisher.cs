@@ -8,7 +8,7 @@ using RabbitMQ.Client;
 namespace DocuMind.Infrastructure.Messaging.RabbitMq;
 
 internal sealed class RabbitMqOutboxMessagePublisher(
-    RabbitMqConnectionFactory connectionFactory,
+    IRabbitMqConnectionFactory connectionFactory,
     RabbitMqTopologyInitializer topologyInitializer,
     IOptions<RabbitMqOptions> options) : IOutboxMessagePublisher
 {
@@ -23,7 +23,7 @@ internal sealed class RabbitMqOutboxMessagePublisher(
 
         await topologyInitializer.InitializeAsync(cancellationToken);
 
-        await using var connection = await connectionFactory.Create().CreateConnectionAsync(cancellationToken);
+        await using var connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
         await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
 
         var properties = new BasicProperties

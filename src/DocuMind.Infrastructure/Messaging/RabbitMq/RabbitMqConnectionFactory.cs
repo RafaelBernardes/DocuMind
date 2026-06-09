@@ -4,7 +4,7 @@ using RabbitMQ.Client;
 
 namespace DocuMind.Infrastructure.Messaging.RabbitMq;
 
-public sealed class RabbitMqConnectionFactory(IOptions<RabbitMqOptions> options)
+public sealed class RabbitMqConnectionFactory(IOptions<RabbitMqOptions> options) : IRabbitMqConnectionFactory
 {
     private readonly RabbitMqOptions _options = options.Value;
 
@@ -18,5 +18,10 @@ public sealed class RabbitMqConnectionFactory(IOptions<RabbitMqOptions> options)
             Password = _options.Password,
             VirtualHost = _options.VirtualHost
         };
+    }
+
+    public ValueTask<IConnection> CreateConnectionAsync(CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<IConnection>(Create().CreateConnectionAsync(cancellationToken));
     }
 }

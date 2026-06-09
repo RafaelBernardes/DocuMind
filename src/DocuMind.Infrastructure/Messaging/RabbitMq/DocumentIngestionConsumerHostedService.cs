@@ -4,6 +4,7 @@ using DocuMind.Core.Documents.IntegrationEvents;
 using DocuMind.Infrastructure.Configuration;
 using DocuMind.Infrastructure.Messaging.DocumentIngestion;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -12,9 +13,9 @@ using RabbitMQ.Client.Events;
 namespace DocuMind.Infrastructure.Messaging.RabbitMq;
 
 public sealed class DocumentIngestionConsumerHostedService(
-    RabbitMqConnectionFactory connectionFactory,
-    RabbitMqTopologyInitializer topologyInitializer,
-    IDocumentIngestionMessageHandler handler,
+    IRabbitMqConnectionFactory connectionFactory,
+    IRabbitMqTopologyInitializer topologyInitializer,
+    IServiceScopeFactory serviceScopeFactory,
     IOptions<RabbitMqOptions> options,
     ILogger<DocumentIngestionConsumerHostedService> logger) : BackgroundService
 {
@@ -30,7 +31,7 @@ public sealed class DocumentIngestionConsumerHostedService(
 
         await topologyInitializer.InitializeAsync(stoppingToken);
 
-        await using var connection = await connectionFactory.Create().CreateConnectionAsync(stoppingToken);
+        await using var connection = await connectionFactory.CreateConnectionAsync(stoppingToken);
         await using var channel = await connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
         await channel.BasicQosAsync(0, _options.PrefetchCount, false, stoppingToken);
@@ -47,11 +48,24 @@ public sealed class DocumentIngestionConsumerHostedService(
                     throw new InvalidOperationException("Could not deserialize the document ingestion message.");
                 }
 
+                await using var scope = serviceScopeFactory.CreateAsyncScope();
+                var handler = scope.ServiceProvider.GetRequiredService<IDocumentIngestionMessageHandler>();
+
                 await handler.HandleAsync(message, stoppingToken);
                 await channel.BasicAckAsync(eventArgs.DeliveryTag, false, stoppingToken);
             }
             catch (Exception exception)
             {
+                if (exception is OperationCanceledException operationCanceledException &&
+                    (operationCanceledException.CancellationToken == stoppingToken || stoppingToken.IsCancellationRequested))
+                {
+                    logger.LogInformation(
+                        "Document ingestion message with delivery tag {DeliveryTag} was canceled during shutdown.",
+                        eventArgs.DeliveryTag);
+
+                    return;
+                }
+
                 logger.LogError(
                     exception,
                     "Failed to consume document ingestion message with delivery tag {DeliveryTag}.",
