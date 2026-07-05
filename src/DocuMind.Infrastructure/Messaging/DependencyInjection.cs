@@ -1,6 +1,4 @@
 using DocuMind.Core.Documents;
-using DocuMind.Infrastructure.Documents.Ingestion;
-using DocuMind.Infrastructure.Messaging.DocumentIngestion;
 using DocuMind.Infrastructure.Messaging.Outbox;
 using DocuMind.Infrastructure.Messaging.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +15,6 @@ public static class DependencyInjection
             serviceProvider.GetRequiredService<RabbitMqTopologyInitializer>());
         services.AddScoped<OutboxPublisherService>();
         services.AddSingleton<IOutboxMessagePublisher, RabbitMqOutboxMessagePublisher>();
-        services.AddScoped<IDocumentIngestionPipeline, DocumentIngestionPipeline>();
-        services.AddScoped<IDocumentIngestionMessageHandler, DocumentIngestionMessageHandler>();
 
         return services;
     }

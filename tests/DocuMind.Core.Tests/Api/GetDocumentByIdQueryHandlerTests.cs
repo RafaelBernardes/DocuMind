@@ -29,6 +29,11 @@ public sealed class GetDocumentByIdQueryHandlerTests
         Assert.Equal(document.UploadedAtUtc, result.Document.UploadedAtUtc);
         Assert.Equal(document.UpdatedAtUtc, result.Document.UpdatedAtUtc);
         Assert.Null(result.Document.FailureReason);
+        Assert.Equal(LastProcessingStage.None.ToString(), result.Document.LastProcessingStage);
+        Assert.Null(result.Document.FailureCategory);
+        Assert.Equal(0, result.Document.ProcessingAttemptCount);
+        Assert.Null(result.Document.LastProcessingStartedAtUtc);
+        Assert.Null(result.Document.LastProcessingStageAtUtc);
     }
 
     [Fact]
@@ -52,6 +57,14 @@ public sealed class GetDocumentByIdQueryHandlerTests
         public Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(document?.Id == id ? document : null);
+        }
+
+        public Task<bool> TryMarkProcessingIfUploadedAsync(
+            Guid documentId,
+            DateTimeOffset changedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
 
         public Task AddAsync(Document document, CancellationToken cancellationToken = default)

@@ -42,6 +42,38 @@ public sealed class DocumentIngestionConsumerHostedServiceTests
         Assert.Equal(1, FakeChannelProxy.BasicConsumeCalls);
         Assert.Equal(0, FakeChannelProxy.BasicAckCalls);
         Assert.Equal(0, FakeChannelProxy.BasicNackCalls);
+        Assert.Null(FakeChannelProxy.LastBasicNackRequeue);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldRequeueWhenHandlerCancelsWithoutStoppingToken()
+    {
+        FakeConnectionProxy.Reset();
+        FakeChannelProxy.Reset();
+
+        var handler = new RecoverableCancellingDocumentIngestionMessageHandler();
+        var services = new ServiceCollection();
+        services.AddScoped<IDocumentIngestionMessageHandler>(_ => handler);
+        services.AddLogging();
+
+        await using var provider = services.BuildServiceProvider();
+        var connectionFactory = new FakeRabbitMqConnectionFactory();
+        var service = new DocumentIngestionConsumerHostedService(
+            connectionFactory,
+            new FakeRabbitMqTopologyInitializer(),
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(CreateOptions()),
+            NullLogger<DocumentIngestionConsumerHostedService>.Instance);
+
+        await service.StartAsync(CancellationToken.None);
+        await handler.HandledAsync;
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.Equal(1, FakeConnectionProxy.CreateChannelCalls);
+        Assert.Equal(1, FakeChannelProxy.BasicConsumeCalls);
+        Assert.Equal(0, FakeChannelProxy.BasicAckCalls);
+        Assert.Equal(1, FakeChannelProxy.BasicNackCalls);
+        Assert.True(FakeChannelProxy.LastBasicNackRequeue);
     }
 
     private static RabbitMqOptions CreateOptions()
@@ -74,6 +106,20 @@ public sealed class DocumentIngestionConsumerHostedServiceTests
         {
             _handled.TrySetResult();
             throw new OperationCanceledException(cancellationToken);
+        }
+    }
+
+    private sealed class RecoverableCancellingDocumentIngestionMessageHandler : IDocumentIngestionMessageHandler
+    {
+        private readonly TaskCompletionSource _handled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly CancellationToken _cancellationToken = new(canceled: true);
+
+        public Task HandledAsync => _handled.Task;
+
+        public Task HandleAsync(DocumentUploadedMessage message, CancellationToken cancellationToken = default)
+        {
+            _handled.TrySetResult();
+            throw new OperationCanceledException(_cancellationToken);
         }
     }
 
@@ -126,12 +172,14 @@ public sealed class DocumentIngestionConsumerHostedServiceTests
         public static int BasicConsumeCalls { get; private set; }
         public static int BasicAckCalls { get; private set; }
         public static int BasicNackCalls { get; private set; }
+        public static bool? LastBasicNackRequeue { get; private set; }
 
         public static void Reset()
         {
             BasicConsumeCalls = 0;
             BasicAckCalls = 0;
             BasicNackCalls = 0;
+            LastBasicNackRequeue = null;
         }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
@@ -147,13 +195,14 @@ public sealed class DocumentIngestionConsumerHostedServiceTests
                 case nameof(IChannel.QueueDeclareAsync):
                 case nameof(IChannel.QueueBindAsync):
                 case nameof(IChannel.BasicQosAsync):
-                    return Task.CompletedTask;
+                    return CompletedAsyncResult(targetMethod.ReturnType);
                 case nameof(IChannel.BasicAckAsync):
                     BasicAckCalls++;
-                    return Task.CompletedTask;
+                    return CompletedAsyncResult(targetMethod.ReturnType);
                 case nameof(IChannel.BasicNackAsync):
                     BasicNackCalls++;
-                    return Task.CompletedTask;
+                    LastBasicNackRequeue = Assert.IsType<bool>(args![2]);
+                    return CompletedAsyncResult(targetMethod.ReturnType);
                 case nameof(IChannel.BasicConsumeAsync):
                     BasicConsumeCalls++;
                     var consumer = Assert.IsType<AsyncEventingBasicConsumer>(args![6]);
@@ -166,15 +215,40 @@ public sealed class DocumentIngestionConsumerHostedServiceTests
                         null!,
                         Encoding.UTF8.GetBytes("""{"documentId":"11111111-1111-1111-1111-111111111111","fileName":"contract.pdf","contentType":"application/pdf","sizeInBytes":1024,"storageRelativePath":"uploads/contract.pdf","uploadedAtUtc":"2026-06-08T00:00:00+00:00"}"""),
                         CancellationToken.None).GetAwaiter().GetResult();
-                    return Task.FromResult("consumer-tag");
+                    return CompletedAsyncResult(targetMethod.ReturnType, "consumer-tag");
                 case nameof(IChannel.BasicCancelAsync):
-                    return Task.CompletedTask;
+                    return CompletedAsyncResult(targetMethod.ReturnType);
                 case nameof(IAsyncDisposable.DisposeAsync):
                     return ValueTask.CompletedTask;
                 default:
                     return DefaultValue(targetMethod.ReturnType);
             }
         }
+    }
+
+    private static object CompletedAsyncResult(Type returnType, object? result = null)
+    {
+        if (returnType == typeof(Task))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (returnType == typeof(ValueTask))
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        if (returnType == typeof(Task<string>))
+        {
+            return Task.FromResult((string?)result ?? string.Empty);
+        }
+
+        if (returnType == typeof(ValueTask<string>))
+        {
+            return ValueTask.FromResult((string?)result ?? string.Empty);
+        }
+
+        return DefaultValue(returnType)!;
     }
 
     private static object? DefaultValue(Type returnType)

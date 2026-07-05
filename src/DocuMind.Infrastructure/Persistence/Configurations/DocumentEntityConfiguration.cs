@@ -41,6 +41,20 @@ public sealed class DocumentEntityConfiguration : IEntityTypeConfiguration<Docum
         builder.Property(document => document.FailureReason)
             .HasMaxLength(2048);
 
+        builder.Property(document => document.RecoveryPoint)
+            .HasConversion<int>()
+            .IsRequired();
+
+        builder.Property(document => document.FailureCategory)
+            .HasConversion<int?>();
+
+        builder.Property(document => document.ProcessingAttemptCount)
+            .IsRequired();
+
+        builder.Property(document => document.LastProcessingStartedAtUtc);
+
+        builder.Property(document => document.LastRecoveryPointAtUtc);
+
         builder.HasMany(document => document.Chunks)
             .WithOne(chunk => chunk.Document)
             .HasForeignKey(chunk => chunk.DocumentId)

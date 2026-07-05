@@ -24,5 +24,15 @@ public sealed class DocumentEntity
 
     public string? FailureReason { get; set; }
 
+    public LastProcessingStage RecoveryPoint { get; set; }
+
+    public FailureCategory? FailureCategory { get; set; }
+
+    public int ProcessingAttemptCount { get; set; }
+
+    public DateTimeOffset? LastProcessingStartedAtUtc { get; set; }
+
+    public DateTimeOffset? LastRecoveryPointAtUtc { get; set; }
+
     public ICollection<DocumentChunkEntity> Chunks { get; set; } = [];
 }

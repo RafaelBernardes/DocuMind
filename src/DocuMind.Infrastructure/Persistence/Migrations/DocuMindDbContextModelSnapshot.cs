@@ -72,10 +72,22 @@ partial class DocuMindDbContextModelSnapshot : ModelSnapshot
                 .HasMaxLength(2048)
                 .HasColumnType("character varying(2048)");
 
+            builder.Property<int?>("FailureCategory")
+                .HasColumnType("integer");
+
             builder.Property<string>("FileName")
                 .IsRequired()
                 .HasMaxLength(512)
                 .HasColumnType("character varying(512)");
+
+            builder.Property<DateTimeOffset?>("LastProcessingStartedAtUtc")
+                .HasColumnType("timestamp with time zone");
+
+            builder.Property<DateTimeOffset?>("LastRecoveryPointAtUtc")
+                .HasColumnType("timestamp with time zone");
+
+            builder.Property<int>("ProcessingAttemptCount")
+                .HasColumnType("integer");
 
             builder.Property<string>("StorageRelativePath")
                 .HasMaxLength(1024)
@@ -85,6 +97,9 @@ partial class DocuMindDbContextModelSnapshot : ModelSnapshot
                 .HasColumnType("bigint");
 
             builder.Property<int>("Status")
+                .HasColumnType("integer");
+
+            builder.Property<int>("RecoveryPoint")
                 .HasColumnType("integer");
 
             builder.Property<DateTimeOffset>("UpdatedAtUtc")

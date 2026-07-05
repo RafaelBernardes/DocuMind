@@ -2,6 +2,7 @@ using DocuMind.Core.Documents;
 using DocuMind.Core.Documents.IntegrationEvents;
 using DocuMind.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
 using System.Text.Json;
 
 namespace DocuMind.Infrastructure.Persistence.Repositories;
@@ -18,6 +19,54 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
             .SingleOrDefaultAsync(document => document.Id == id, cancellationToken);
 
         return entity is null ? null : MapToDomain(entity);
+    }
+
+    public async Task<bool> TryMarkProcessingIfUploadedAsync(
+        Guid documentId,
+        DateTimeOffset changedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedChangedAtUtc = changedAtUtc.ToUniversalTime();
+
+        if (!dbContext.Database.IsRelational())
+        {
+            var document = await dbContext.Documents.SingleOrDefaultAsync(
+                document => document.Id == documentId,
+                cancellationToken);
+
+            if (document is null || document.Status != DocumentStatus.Uploaded)
+            {
+                return false;
+            }
+
+            document.Status = DocumentStatus.Processing;
+            document.UpdatedAtUtc = normalizedChangedAtUtc;
+            document.FailureReason = null;
+            document.RecoveryPoint = LastProcessingStage.Claimed;
+            document.FailureCategory = null;
+            document.ProcessingAttemptCount += 1;
+            document.LastProcessingStartedAtUtc = normalizedChangedAtUtc;
+            document.LastRecoveryPointAtUtc = normalizedChangedAtUtc;
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        var affectedRows = await dbContext.Documents
+            .Where(document => document.Id == documentId && document.Status == DocumentStatus.Uploaded)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(document => document.Status, DocumentStatus.Processing)
+                    .SetProperty(document => document.UpdatedAtUtc, normalizedChangedAtUtc)
+                    .SetProperty(document => document.FailureReason, (string?)null)
+                    .SetProperty(document => document.RecoveryPoint, LastProcessingStage.Claimed)
+                    .SetProperty(document => document.FailureCategory, (FailureCategory?)null)
+                    .SetProperty(document => document.ProcessingAttemptCount, document => document.ProcessingAttemptCount + 1)
+                    .SetProperty(document => document.LastProcessingStartedAtUtc, normalizedChangedAtUtc)
+                    .SetProperty(document => document.LastRecoveryPointAtUtc, normalizedChangedAtUtc),
+                cancellationToken);
+
+        return affectedRows == 1;
     }
 
     public async Task AddAsync(Document document, CancellationToken cancellationToken = default)
@@ -51,6 +100,11 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
         entity.UploadedAtUtc = document.UploadedAtUtc;
         entity.UpdatedAtUtc = document.UpdatedAtUtc;
         entity.FailureReason = document.FailureReason;
+        entity.RecoveryPoint = document.LastProcessingStage;
+        entity.FailureCategory = document.FailureCategory;
+        entity.ProcessingAttemptCount = document.ProcessingAttemptCount;
+        entity.LastProcessingStartedAtUtc = document.LastProcessingStartedAtUtc;
+        entity.LastRecoveryPointAtUtc = document.LastProcessingStageAtUtc;
 
         if (entity.Chunks.Count > 0)
         {
@@ -83,6 +137,11 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
             UploadedAtUtc = document.UploadedAtUtc,
             UpdatedAtUtc = document.UpdatedAtUtc,
             FailureReason = document.FailureReason,
+            RecoveryPoint = document.LastProcessingStage,
+            FailureCategory = document.FailureCategory,
+            ProcessingAttemptCount = document.ProcessingAttemptCount,
+            LastProcessingStartedAtUtc = document.LastProcessingStartedAtUtc,
+            LastRecoveryPointAtUtc = document.LastProcessingStageAtUtc,
             Chunks = document.Chunks
                 .Select(MapChunkToEntity)
                 .ToList()
@@ -91,6 +150,12 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
 
     private static Document MapToDomain(DocumentEntity entity)
     {
+        var failureCategory = entity.FailureCategory;
+        if (entity.Status == DocumentStatus.Failed && failureCategory is null)
+        {
+            failureCategory = FailureCategory.PermanentInvariant;
+        }
+
         var metadata = new DocumentMetadata(
             entity.FileName,
             entity.ContentType,
@@ -107,7 +172,8 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
                 new ChunkMetadata(
                     chunk.CharacterCount,
                     chunk.TokenCount,
-                    chunk.PageLabel)))
+                    chunk.PageLabel),
+                MapEmbeddingToDomain(chunk.Embedding)))
             .ToArray();
 
         return Document.Rehydrate(
@@ -118,6 +184,11 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
             entity.UploadedAtUtc,
             entity.UpdatedAtUtc,
             entity.FailureReason,
+            lastProcessingStage: entity.RecoveryPoint,
+            failureCategory,
+            entity.ProcessingAttemptCount,
+            entity.LastProcessingStartedAtUtc,
+            lastProcessingStageAtUtc: entity.LastRecoveryPointAtUtc,
             chunks);
     }
 
@@ -132,8 +203,18 @@ public sealed class DocumentRepository(DocuMindDbContext dbContext) : IDocumentR
             CharacterCount = chunk.Metadata.CharacterCount,
             TokenCount = chunk.Metadata.TokenCount,
             PageLabel = chunk.Metadata.PageLabel,
-            Embedding = null
+            Embedding = MapEmbeddingToEntity(chunk.Embedding)
         };
+    }
+
+    private static Vector? MapEmbeddingToEntity(IReadOnlyList<float>? embedding)
+    {
+        return embedding is null ? null : new Vector(embedding.ToArray());
+    }
+
+    private static float[]? MapEmbeddingToDomain(Vector? embedding)
+    {
+        return embedding?.ToArray();
     }
 
     private static OutboxMessageEntity MapUploadedDocumentToOutboxMessage(Document document)

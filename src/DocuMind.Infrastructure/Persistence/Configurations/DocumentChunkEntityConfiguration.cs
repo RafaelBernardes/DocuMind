@@ -1,4 +1,5 @@
 using DocuMind.Infrastructure.Persistence.Entities;
+using DocuMind.Core.Documents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -24,7 +25,7 @@ public sealed class DocumentChunkEntityConfiguration : IEntityTypeConfiguration<
             .IsRequired();
 
         builder.Property(chunk => chunk.Embedding)
-            .HasColumnType("vector(1536)");
+            .HasColumnType($"vector({EmbeddingConstants.ExpectedDimensions})");
 
         builder.HasIndex(chunk => new { chunk.DocumentId, chunk.Order })
             .IsUnique();

@@ -54,10 +54,9 @@ public sealed class DocumentIngestionConsumerHostedService(
                 await handler.HandleAsync(message, stoppingToken);
                 await channel.BasicAckAsync(eventArgs.DeliveryTag, false, stoppingToken);
             }
-            catch (Exception exception)
+            catch (OperationCanceledException operationCanceledException)
             {
-                if (exception is OperationCanceledException operationCanceledException &&
-                    (operationCanceledException.CancellationToken == stoppingToken || stoppingToken.IsCancellationRequested))
+                if (operationCanceledException.CancellationToken == stoppingToken || stoppingToken.IsCancellationRequested)
                 {
                     logger.LogInformation(
                         "Document ingestion message with delivery tag {DeliveryTag} was canceled during shutdown.",
@@ -65,6 +64,16 @@ public sealed class DocumentIngestionConsumerHostedService(
 
                     return;
                 }
+
+                logger.LogWarning(
+                    operationCanceledException,
+                    "Document ingestion message with delivery tag {DeliveryTag} was canceled and will be requeued.",
+                    eventArgs.DeliveryTag);
+
+                await channel.BasicNackAsync(eventArgs.DeliveryTag, false, requeue: true, cancellationToken: stoppingToken);
+            }
+            catch (Exception exception)
+            {
 
                 logger.LogError(
                     exception,

@@ -112,6 +112,14 @@ public sealed class UploadDocumentCommandHandlerTests
             return Task.FromResult<Document?>(null);
         }
 
+        public Task<bool> TryMarkProcessingIfUploadedAsync(
+            Guid documentId,
+            DateTimeOffset changedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task AddAsync(Document document, CancellationToken cancellationToken = default)
         {
             if (ThrowOnAdd)

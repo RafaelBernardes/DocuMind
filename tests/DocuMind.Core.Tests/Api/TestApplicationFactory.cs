@@ -81,6 +81,23 @@ public sealed class InMemoryDocumentRepository : IDocumentRepository
         }
     }
 
+    public Task<bool> TryMarkProcessingIfUploadedAsync(
+        Guid documentId,
+        DateTimeOffset changedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_syncRoot)
+        {
+            if (!_documents.TryGetValue(documentId, out var document) || document.Status != DocumentStatus.Uploaded)
+            {
+                return Task.FromResult(false);
+            }
+
+            document.MarkProcessing(changedAtUtc);
+            return Task.FromResult(true);
+        }
+    }
+
     public Task AddAsync(Document document, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);

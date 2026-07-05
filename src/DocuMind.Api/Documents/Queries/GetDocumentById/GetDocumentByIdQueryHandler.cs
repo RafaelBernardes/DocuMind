@@ -22,7 +22,12 @@ public sealed class GetDocumentByIdQueryHandler(IDocumentRepository documentRepo
             document.Metadata.SizeInBytes,
             document.UploadedAtUtc,
             document.UpdatedAtUtc,
-            document.FailureReason));
+            document.FailureReason,
+            document.LastProcessingStage.ToString(),
+            document.FailureCategory?.ToString(),
+            document.ProcessingAttemptCount,
+            document.LastProcessingStartedAtUtc,
+            document.LastProcessingStageAtUtc));
     }
 }
 
@@ -34,7 +39,12 @@ public sealed record GetDocumentByIdResult(
     long SizeInBytes,
     DateTimeOffset UploadedAtUtc,
     DateTimeOffset UpdatedAtUtc,
-    string? FailureReason);
+    string? FailureReason,
+    string LastProcessingStage,
+    string? FailureCategory,
+    int ProcessingAttemptCount,
+    DateTimeOffset? LastProcessingStartedAtUtc,
+    DateTimeOffset? LastProcessingStageAtUtc);
 
 public sealed record GetDocumentByIdOperationResult(
     bool IsSuccess,
